@@ -1,15 +1,15 @@
 {
     "mint": {
-        "label": "mint-myXFfmGc",
-        "contract_id": "30215",
-        "address": "secret1kayf30aj8797jeygwd69qe0zaqj58wskxet4h2",
-        "code_hash": "B5CFBBBDB167D3EF9359DD31DEC02369981239CBB8632FE6929B858896362C8D",
+        "label": "mint-RjoZZxRM",
+        "contract_id": "30322",
+        "address": "secret14ydqeqdghafyegrv6ke0p2rca8fca2jrfys3cr",
+        "code_hash": "D876D89C70EB0F7C2B146AACBE0DBC5D8B357F2BB880E15589C1491717757B61",
         "checksum": "b217f26eae6d450570ee295b0d604663"
     },
     "oracle": {
-        "label": "oracle-bBwSOgHV",
-        "contract_id": "30214",
-        "address": "secret13zdwq0as65v0wtqtu3rl9c6ypymlw4ltmgf2la",
+        "label": "oracle-OViilyVt",
+        "contract_id": "30321",
+        "address": "secret19v8r80ypjtsddhq97kdqsr93grlp5gq5e5pxt2",
         "code_hash": "F280D855FEF99EE9D6594086C897EB9AD76469C898FBC945A673C38405C975F4",
         "checksum": "31c3ff776e85627bf77c00787a94a68b"
     },

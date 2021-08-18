@@ -44,6 +44,15 @@ def test_send(burn_asset, burn_asset_password, mint_asset, mint_asset_password, 
           f"Mint:       {int(mint_asset_supply_after) - int(mint_asset_supply_before)} u{mint_asset_symbol}\n")
 
 
+def new_migration_contract(contract, user='a', gas='10000000', backend='test'):
+    stored_contract = secretlib.store_contract(contract, user, gas, backend)
+    for attribute in stored_contract['logs'][0]['events'][0]['attributes']:
+        if attribute["key"] == "code_id":
+            id = attribute['value']
+            contracts = json.loads(secretlib.run_command(['secretcli', 'q', 'compute', 'list-code']))
+            return [id, contracts[-1]["data-hash"]]
+
+
 parser = argparse.ArgumentParser(description='Automated smart contract tester')
 parser.add_argument("--testnet", choices=["private", "public"], default="private", type=str, required=False,
                     help="Specify which deploy scenario to run")
@@ -210,38 +219,50 @@ if args.testnet == "public":
 
     print("Configuring Mint")
     mint_updated = False
-    with open("checksum/mint.txt", 'r') as mint_checksum:
-        mint_instantiated_contract = PreInstantiatedContract(
-            address=contracts_config["mint"]["address"],
-            code_hash=contracts_config["mint"]["code_hash"])
-        mint = Mint(contracts_config["mint"]["label"], silk, shade, oracle, admin=account, uploader=account,
-                    backend=None,
-                    instantiated_contract=mint_instantiated_contract, code_id=contracts_config["mint"]["contract_id"])
+    # Check if running, migrating or just re instantiating
 
-        if mint_checksum.readline().strip() != contracts_config["mint"]["checksum"].strip():
-            print("Instantiating Mint")
-            mint_updated = True
-            label = f"mint-{gen_label(8)}"
-            # TODO: upload and get codehash + id of the contract without instantiating to call the mint.migrate
-            new_mint = Mint(label, silk, shade, oracle, admin=account, uploader=account, backend=None)
-            # mint.migrate()
-            mint = copy.deepcopy(new_mint)
-            contracts_config["mint"]["label"] = label
-            contracts_config["mint"]["contract_id"] = mint.contract_id
-            contracts_config["mint"]["address"] = mint.address
-            contracts_config["mint"]["code_hash"] = mint.code_hash
+    if contracts_config["mint"]["address"] == "":
+        print("Instantiating Mint")
+        mint_updated = True
+        label = f"mint-{gen_label(8)}"
+        mint = Mint(label, oracle, admin=account, uploader=account, backend=None)
+    else:
+        with open("checksum/mint.txt", 'r') as mint_checksum:
+            mint_instantiated_contract = PreInstantiatedContract(
+                address=contracts_config["mint"]["address"],
+                code_hash=contracts_config["mint"]["code_hash"])
+            mint = Mint(contracts_config["mint"]["label"], silk, shade, oracle, admin=account, uploader=account,
+                        backend=None,
+                        instantiated_contract=mint_instantiated_contract, code_id=contracts_config["mint"]["contract_id"])
 
-    if silk_updated or oracle_updated or shade_updated:
-        mint.update_config(silk=silk, oracle=oracle)
+            if mint_checksum.readline().strip() != contracts_config["mint"]["checksum"].strip():
+                print("Migrating Mint")
+                mint_updated = True
+                label = f"mint-{gen_label(8)}"
+                new_contract_info = new_migration_contract("mint.wasm.gz", account, backend=None)
+                new_mint = mint.migrate(label, code_id=new_contract_info[0], code_hash=new_contract_info[1])
+                mint = copy.deepcopy(new_mint)
+    contracts_config["mint"]["label"] = label
+    contracts_config["mint"]["contract_id"] = mint.contract_id
+    contracts_config["mint"]["address"] = mint.address
+    contracts_config["mint"]["code_hash"] = mint.code_hash
+
+    if oracle_updated:
+        mint.update_config(oracle=oracle)
 
     if silk_updated or mint_updated:
         silk.set_minters([mint.address])
 
+    if shade_updated or mint_updated:
+        shade.set_minters([mint.address])
+
     if mint_updated:
+        mint.register_asset(silk)
+        mint.register_asset(shade)
         mint.register_asset(sscrt)
 
-    assets = mint.get_supported_assets()['supported_assets']['assets'][0]
-    assert sscrt.address == assets, f"Got {assets}; expected {sscrt.address}"
+    assets = mint.get_supported_assets()['supported_assets']['assets']
+    assert 3 == len(assets), f"Got {len(assets)}; expected {3}"
     mint.print()
 
     # Save json data
